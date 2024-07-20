@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vrukshayurveda</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .chat-container {
+            width: 50%;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .messages {
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #e9e9f0;
+        }
+        .messages p {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #e2e2e2;
+            color: black;
+            align-self: flex-start;
+            text-align: left;
+        }
+        .formatted-message {
+            white-space: pre-wrap;
+        }
+        .feedback-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        input[type="text"] {
+            width: calc(100% - 60px);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .card-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .card {
+            width: 30%;
+            padding: 20px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Vrukshayurveda</h2>
+        <div class="card-container">
+            <div class="card" onclick="sendPredefinedMessage('What are the treatments for kapha disorder?')">
+                What are the treatments for Kapha disorder?
+            </div>
+            <div class="card" onclick="sendPredefinedMessage('What are the treatments for vata disorder?')">
+                What are the treatments for Vata disorder?
+            </div>
+            <div class="card" onclick="sendPredefinedMessage('What are the treatments for pitta disorder?')">
+                What are the treatments for Pitta disorder?
+            </div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <input type="text" id="user-input" placeholder="Type your message here...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        function sendPredefinedMessage(question) {
+            displayMessage(question, 'user-message');
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ input: question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayFormattedMessage(data.response, 'bot-message');
+                addFeedbackButtons();
+            });
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+            if (userInput.trim() === "") return;
+
+            displayMessage(userInput, 'user-message');
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ input: userInput })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayFormattedMessage(data.response, 'bot-message');
+                addFeedbackButtons();
+            });
+
+            document.getElementById('user-input').value = "";
+        }
+
+        function displayMessage(message, className) {
+            const messageContainer = document.getElementById('messages');
+            const messageElement = document.createElement('p');
+            messageElement.className = className;
+            messageElement.textContent = message;
+            messageContainer.appendChild(messageElement);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        function displayFormattedMessage(message, className) {
+            const formattedMessage = message
+                .replace(/\n/g, '<br>')
+                .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const messageContainer = document.getElementById('messages');
+            const messageElement = document.createElement('p');
+            messageElement.className = className + ' formatted-message';
+            messageElement.innerHTML = formattedMessage;
+            messageContainer.appendChild(messageElement);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        function addFeedbackButtons() {
+            const messageContainer = document.getElementById('messages');
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = 'feedback-buttons';
+            feedbackDiv.innerHTML = `
+                <button onclick="sendFeedback('positive')">👍 Helpful</button>
+                <button onclick="sendFeedback('negative')">👎 Not Helpful</button>
+            `;
+            messageContainer.appendChild(feedbackDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        function sendFeedback(feedbackType) {
+            const message = document.querySelector('.formatted-message:last-child');
+            fetch('/api/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ feedback: feedbackType, message: message.textContent })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Thank you for your feedback!');
+            });
+        }
+    </script>
+</body>
+</html>
